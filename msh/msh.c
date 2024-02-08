@@ -119,7 +119,7 @@ int main()
       // child pid error
       if( child_pid == -1)
       {
-        perror("fork fialed: ");
+        perror("fork failed: ");
         exit(EXIT_FAILURE);
       }
 
@@ -127,7 +127,7 @@ int main()
       if(child_pid == 0)
       {
           // needs to be changed to reflect token[]
-          execl("/bin/ls", "ls", NULL);
+          execvp(token[0], &token[0]);
 
           fflush(NULL);
           exit(EXIT_SUCCESS);
@@ -136,7 +136,7 @@ int main()
       // wait for child process to finish
       waitpid(child_pid, &status, 0);
 
-      // childe terminated by signal
+      // child terminated by signal
       if(WIFSIGNALED(status))
       {
         printf("Child returned with status: %d", WTERMSIG(status));

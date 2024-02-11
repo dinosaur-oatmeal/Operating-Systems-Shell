@@ -92,13 +92,39 @@ int main()
     // Now print the tokenized input as a debug check
     // \TODO Remove this code and replace with your shell functionality
 
-    //compare first token to exit
+    char error_message[30] = "An error has occurred\n";
+    //write(STDERR_FILENO, error_message, strlen(error_message));
+
+    // compare first token to exit
     if(strcmp(token[0], "exit") == 0)
     {
       //printf("Success!");
 
-      //exit program
-      exit(1);
+      // exit program
+      exit(0);
+    }
+
+    // see if input is valid
+    int exist = access(strcat("/usr/local/bin/", token[0]), X_OK);
+
+    if(exist == -1)
+    {
+      exist = access(strcat("/usr/bin/", token[0]), X_OK);
+    }
+
+    if(exist == -1)
+    {
+      exist = access(strcat("/bin/", token[0]), X_OK);
+    }
+
+    if(exist == -1)
+    {
+      exist = access(strcat("./", token[0]), X_OK);
+    }
+
+    if(exist == -1)
+    {
+      write(STDERR_FILENO, error_message, strlen(error_message));
     }
 
     // all processes that require fork()
@@ -109,9 +135,6 @@ int main()
       int status;
         
       // *** commands that I'll likely need (from notes) ***
-      // execl(char const *path, char const *arg0, ...);
-      // execle(char const *path, char const *arg0, ..., char const *envp[]);
-      // execlp(char const *file, char const *arg0, ...);
       // execv(char const *path, char const *argv[]);
       // execve(char const *path, char const *argv[], char const *envp[]);
       // execvp(char const *file, char const *argv[]);
@@ -127,10 +150,14 @@ int main()
       if(child_pid == 0)
       {
           // needs to be changed to reflect token[]
+
+          if(access == 0)
+          {
           execvp(token[0], &token[0]);
 
           fflush(NULL);
           exit(EXIT_SUCCESS);
+          }
       }
 
       // wait for child process to finish
@@ -155,4 +182,3 @@ int main()
   }
   return 0; 
 }
-

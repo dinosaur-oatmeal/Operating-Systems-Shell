@@ -100,31 +100,48 @@ int main()
     {
       //printf("Success!");
 
-      // exit program
-      exit(0);
+      // error exiting
+      if(token[1] != NULL)
+      {
+        write(STDERR_FILENO, error_message, strlen(error_message));
+      }
+
+      // exit
+      else
+      {
+        exit(0);
+      }
     }
 
-    // see if input is valid
-    int exist = access(strcat("/usr/local/bin/", token[0]), X_OK);
-
-    if(exist == -1)
+    // cd
+    if(strcmp(token[0], "cd") == 0)
     {
-      exist = access(strcat("/usr/bin/", token[0]), X_OK);
+        // incorrect input for cd
+        if(token[1] == NULL || token[2] != NULL)
+        {
+          write(STDERR_FILENO, error_message, strlen(error_message));
+        }
+
+        // call chdir
+        else
+        {
+          // cd does not exist
+          if(chdir(token[1]) != 0)
+          {
+            write(STDERR_FILENO, error_message, strlen(error_message));
+          }
+
+          else
+          {
+              chdir(token[1]);
+          }
+        }
     }
 
-    if(exist == -1)
+    // path
+    if(strcmp(token[0], "path") == 0)
     {
-      exist = access(strcat("/bin/", token[0]), X_OK);
-    }
-
-    if(exist == -1)
-    {
-      exist = access(strcat("./", token[0]), X_OK);
-    }
-
-    if(exist == -1)
-    {
-      write(STDERR_FILENO, error_message, strlen(error_message));
+        
     }
 
     // all processes that require fork()
@@ -153,10 +170,10 @@ int main()
 
           if(access == 0)
           {
-          execvp(token[0], &token[0]);
+            execvp(token[0], &token[0]);
 
-          fflush(NULL);
-          exit(EXIT_SUCCESS);
+            fflush(NULL);
+            exit(EXIT_SUCCESS);
           }
       }
 

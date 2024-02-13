@@ -35,6 +35,8 @@
 #include <ctype.h>
 #include <dirent.h>
 
+#include <fcntl.h>
+
 #define WHITESPACE " \t\n"      // We want to split our command line up into tokens
                                 // so we need to define what delimits our tokens.
                                 // In this case  white space
@@ -44,7 +46,7 @@
 
 #define MAX_NUM_ARGUMENTS 32
 
-int main()
+int main(int argc, char * argv[])
 {
 
   char * command_string = (char*) malloc( MAX_COMMAND_SIZE );
@@ -92,6 +94,22 @@ int main()
     // Now print the tokenized input as a debug check
     // \TODO Remove this code and replace with your shell functionality
 
+    // handle whitespace by looping through input
+    if(token[1] == NULL)
+    {
+      int count_token = 1;
+      for(int count_input = 1; count_input < token_count; count_input++)
+      {
+        //move non-NULL parameters to front of token[]
+        if(token[count_input] != NULL)
+        {
+          token[count_token] = token[count_input];
+          token[count_input] = NULL;
+          count_token++;
+        }
+      }
+    }
+
     char error_message[30] = "An error has occurred\n";
     //write(STDERR_FILENO, error_message, strlen(error_message));
 
@@ -131,6 +149,7 @@ int main()
             write(STDERR_FILENO, error_message, strlen(error_message));
           }
 
+          // execute command
           else
           {
               chdir(token[1]);
@@ -138,43 +157,52 @@ int main()
         }
     }
 
-    // path
-    if(strcmp(token[0], "path") == 0)
-    {
-        
-    }
-
     // all processes that require fork()
     else
     {
+      //look for redirection
+        for(int i = 1; i < argc; i++)
+        {
+          if(strcmp(token[i], ">") == 0)
+          {
+            int fd = open(token[i + 1], O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+
+            if(fd < 0)
+            {
+              write(STDERR_FILENO, error_message, strlen(error_message));
+              exit(0);
+            }
+
+            dup2(fd, 1);
+            close(fd);
+
+            //trim off '>' and [filename] in command
+            token[i] = NULL;
+            token[i + 1] = NULL;
+          }
+        }
       // make child's pid and status
       pid_t child_pid = fork();
       int status;
-        
-      // *** commands that I'll likely need (from notes) ***
-      // execv(char const *path, char const *argv[]);
-      // execve(char const *path, char const *argv[], char const *envp[]);
-      // execvp(char const *file, char const *argv[]);
 
       // child pid error
       if( child_pid == -1)
       {
-        perror("fork failed: ");
+        write(STDERR_FILENO, error_message, strlen(error_message));
         exit(EXIT_FAILURE);
       }
 
       // execute child pid's process
       if(child_pid == 0)
       {
-          // needs to be changed to reflect token[]
 
-          if(access == 0)
-          {
-            execvp(token[0], &token[0]);
+        
 
-            fflush(NULL);
-            exit(EXIT_SUCCESS);
-          }
+        // executes process and automatically searches correct directories
+        execvp(token[0], &token[0]);
+
+        fflush(NULL);
+        exit(EXIT_SUCCESS);
       }
 
       // wait for child process to finish
@@ -183,7 +211,7 @@ int main()
       // child terminated by signal
       if(WIFSIGNALED(status))
       {
-        printf("Child returned with status: %d", WTERMSIG(status));
+        write(STDERR_FILENO, error_message, strlen(error_message));
       }
     }
 
@@ -195,7 +223,7 @@ int main()
     }
 
     free( head_ptr );
-
   }
+
   return 0; 
 }

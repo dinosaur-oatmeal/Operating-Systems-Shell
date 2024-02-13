@@ -100,7 +100,7 @@ int main(int argc, char * argv[])
       int count_token = 1;
       for(int count_input = 1; count_input < token_count; count_input++)
       {
-        //move non-NULL parameters to front of token[]
+        // move non-NULL parameters to front of token[] and NULL parameters to the end of the 
         if(token[count_input] != NULL)
         {
           token[count_token] = token[count_input];
@@ -160,27 +160,6 @@ int main(int argc, char * argv[])
     // all processes that require fork()
     else
     {
-      //look for redirection
-        for(int i = 1; i < argc; i++)
-        {
-          if(strcmp(token[i], ">") == 0)
-          {
-            int fd = open(token[i + 1], O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
-
-            if(fd < 0)
-            {
-              write(STDERR_FILENO, error_message, strlen(error_message));
-              exit(0);
-            }
-
-            dup2(fd, 1);
-            close(fd);
-
-            //trim off '>' and [filename] in command
-            token[i] = NULL;
-            token[i + 1] = NULL;
-          }
-        }
       // make child's pid and status
       pid_t child_pid = fork();
       int status;
@@ -193,10 +172,32 @@ int main(int argc, char * argv[])
       }
 
       // execute child pid's process
-      if(child_pid == 0)
+      else if(child_pid == 0)
       {
 
-        
+        // look for redirection (use token[] instead of argv[])
+        // command stored in token[]
+        for(int i = 1; i < argc; i++)
+        {
+          if(strcmp(token[i], ">") == 0)
+          {
+            int fd = open(token[i + 1], O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+
+            // error opening file
+            if(fd < 0)
+            {
+              write(STDERR_FILENO, error_message, strlen(error_message));
+              exit(0);
+            }
+
+            dup2(fd, 1);
+            close(fd);
+
+            // trim off '>' and [filename] in command
+            token[i] = NULL;
+            token[i + 1] = NULL;
+          }
+        }
 
         // executes process and automatically searches correct directories
         execvp(token[0], &token[0]);
@@ -205,14 +206,28 @@ int main(int argc, char * argv[])
         exit(EXIT_SUCCESS);
       }
 
-      // wait for child process to finish
-      waitpid(child_pid, &status, 0);
+      // wait for process
+      else if(child_pid > 0)
+      {
+        wait(NULL);
+      }
+
+      // fork failed
+      else
+      {
+        write(STDERR_FILENO, error_message, strlen(error_message));
+        exit(0);
+      }
 
       // child terminated by signal
       if(WIFSIGNALED(status))
       {
         write(STDERR_FILENO, error_message, strlen(error_message));
+        exit(0);
       }
+
+      // wait for child process to finish
+      waitpid(child_pid, &status, 0);
     }
 
     // remove next 5 lines at the end

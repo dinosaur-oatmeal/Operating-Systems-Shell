@@ -38,6 +38,8 @@
 // added to support redirection from popen.c
 #include <fcntl.h>
 
+// test file arguments with: ./msh tests/1.in
+
 #define WHITESPACE " \t\n"      // We want to split our command line up into tokens
                                 // so we need to define what delimits our tokens.
                                 // In this case  white space
@@ -46,6 +48,11 @@
 #define MAX_COMMAND_SIZE 255    // The maximum command-line size
 
 #define MAX_NUM_ARGUMENTS 32
+
+  // TO DO: figure out why running with test files in command line doesn't work
+  // figure out why ls keeps saying ls: cannot access ' ': No such file or directory
+  // figure out why redirection doesn't work
+
 
 int main(int argc, char *argv[])
 {
@@ -127,8 +134,8 @@ int main(int argc, char *argv[])
     // \TODO Remove this code and replace with your shell functionality
 
     // handle whitespace by looping through input
-    int count_token = 1;
-    for(int count_input = 1; count_input < token_count; count_input++)
+    int count_token = 0;
+    for(int count_input = 0; count_input < token_count; count_input++)
     {
       // move non-NULL parameters to front of token[] and NULL parameters to the end of the 
       if(token[count_input] != NULL)
@@ -149,14 +156,8 @@ int main(int argc, char *argv[])
     {
       //printf("Success!");
 
-      // error exiting
-      if(token[1] != NULL)
-      {
-        write(STDERR_FILENO, error_message, strlen(error_message));
-      }
-
-      // exit
-      else
+      // exiting
+      if(token[1] == NULL)
       {
         exit(0);
       }
@@ -239,7 +240,7 @@ int main(int argc, char *argv[])
         else
         {
           // executes process and automatically searches correct directories
-          execvp(token[0], &token[0]);
+            execvp(token[0], &token[0]);
         }
 
         // exit child process
@@ -272,11 +273,11 @@ int main(int argc, char *argv[])
     }
 
     // remove next 5 lines at the end
-    /*int token_index  = 0;
+    int token_index  = 0;
     for( token_index = 0; token_index < token_count; token_index ++ ) 
     {
       printf("token[%d] = %s\n", token_index, token[token_index] );  
-    }*/
+    }
 
     if(myFile != NULL)
     {

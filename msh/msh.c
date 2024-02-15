@@ -35,6 +35,7 @@
 #include <ctype.h>
 #include <dirent.h>
 
+// added to support redirection from popen.c
 #include <fcntl.h>
 
 #define WHITESPACE " \t\n"      // We want to split our command line up into tokens
@@ -46,21 +47,52 @@
 
 #define MAX_NUM_ARGUMENTS 32
 
-int main(int argc, char * argv[])
+int main(int argc, char *argv[])
 {
 
   char * command_string = (char*) malloc( MAX_COMMAND_SIZE );
 
+  // error message and written message
+  char error_message[30] = "An error has occurred\n";
+  // write(STDERR_FILENO, error_message, strlen(error_message));
+
+  // create file pointer
+  FILE *myFile;
+
+  // open file if there's an argument for it
+  if(argc > 1)
+  {
+    // open file to be read from
+    myFile = fopen(argv[1], "r");
+
+    // file can't be opened
+    if(myFile == NULL)
+    {
+      write(STDERR_FILENO, error_message, strlen(error_message));
+      exit(EXIT_FAILURE);
+    }
+  }
+
   while( 1 )
   {
-    // Print out the msh prompt
-    printf ("msh> ");
+    // interactive mode
+    if(myFile == NULL)
+    {
+      // Print out the msh prompt
+      printf ("msh> ");
 
-    // Read the command from the commandi line.  The
-    // maximum command that will be read is MAX_COMMAND_SIZE
-    // This while command will wait here until the user
-    // inputs something.
-    while( !fgets (command_string, MAX_COMMAND_SIZE, stdin) );
+      // Read the command from the command line.  The
+      // maximum command that will be read is MAX_COMMAND_SIZE
+      // This while command will wait here until the user
+      // inputs something.
+      while( !fgets (command_string, MAX_COMMAND_SIZE, stdin) );
+    }
+
+    // batch mode
+    else
+    {
+      while(!fgets(command_string, MAX_COMMAND_SIZE, myFile));
+    }
 
     /* Parse input */
     char *token[MAX_NUM_ARGUMENTS];
@@ -95,23 +127,22 @@ int main(int argc, char * argv[])
     // \TODO Remove this code and replace with your shell functionality
 
     // handle whitespace by looping through input
-    if(token[1] == NULL)
+    int count_token = 1;
+    for(int count_input = 1; count_input < token_count; count_input++)
     {
-      int count_token = 1;
-      for(int count_input = 1; count_input < token_count; count_input++)
+      // move non-NULL parameters to front of token[] and NULL parameters to the end of the 
+      if(token[count_input] != NULL)
       {
-        // move non-NULL parameters to front of token[] and NULL parameters to the end of the 
-        if(token[count_input] != NULL)
+        token[count_token] = token[count_input];
+
+        // catch cases where values are the same (don't overwrite data)
+        if(count_input != count_token)
         {
-          token[count_token] = token[count_input];
-          token[count_input] = NULL;
-          count_token++;
+          token[count_input] = NULL;\
         }
+        count_token++;
       }
     }
-
-    char error_message[30] = "An error has occurred\n";
-    //write(STDERR_FILENO, error_message, strlen(error_message));
 
     // compare first token to exit
     if(strcmp(token[0], "exit") == 0)
@@ -199,9 +230,19 @@ int main(int argc, char * argv[])
           }
         }
 
-        // executes process and automatically searches correct directories
-        execvp(token[0], &token[0]);
+        // see if command exists in directories
+        if(execvp(token[0], &token[0]) == -1)
+        {
+          write(STDERR_FILENO, error_message, strlen(error_message));
+        }
 
+        else
+        {
+          // executes process and automatically searches correct directories
+          execvp(token[0], &token[0]);
+        }
+
+        // exit child process
         fflush(NULL);
         exit(EXIT_SUCCESS);
       }
@@ -231,10 +272,15 @@ int main(int argc, char * argv[])
     }
 
     // remove next 5 lines at the end
-    int token_index  = 0;
+    /*int token_index  = 0;
     for( token_index = 0; token_index < token_count; token_index ++ ) 
     {
       printf("token[%d] = %s\n", token_index, token[token_index] );  
+    }*/
+
+    if(myFile != NULL)
+    {
+      fclose(myFile);
     }
 
     free( head_ptr );

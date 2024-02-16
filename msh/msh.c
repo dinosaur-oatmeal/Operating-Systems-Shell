@@ -49,9 +49,9 @@
 
 #define MAX_NUM_ARGUMENTS 32
 
-  // TO DO: figure out why running with test files in command line doesn't work
+  // TO DO: figure out why running with test files in command line seg faults
   // figure out why ls keeps saying ls: cannot access ' ': No such file or directory
-  // figure out why redirection doesn't work
+  // figure out why redirection says cannot access '>' and prints to screen
 
 
 int main(int argc, char *argv[])
@@ -98,7 +98,17 @@ int main(int argc, char *argv[])
     // batch mode
     else
     {
-      while(!fgets(command_string, MAX_COMMAND_SIZE, myFile));
+        // break at end of file
+        if(feof(myFile))
+        {
+          break;
+        }
+        
+        //read next line
+        else
+        {
+          fscanf(myFile, command_string, MAX_COMMAND_SIZE);
+        }
     }
 
     /* Parse input */
@@ -197,7 +207,7 @@ int main(int argc, char *argv[])
       int status;
 
       // child pid error
-      if( child_pid == -1)
+      if(child_pid == -1)
       {
         write(STDERR_FILENO, error_message, strlen(error_message));
         exit(EXIT_FAILURE);
@@ -209,10 +219,23 @@ int main(int argc, char *argv[])
 
         // look for redirection (use token[] instead of argv[])
         // command stored in token[]
-        for(int i = 1; i < argc; i++)
+        for(int i = 1; i < token_count; i++)
         {
+          // break at the end of the command
+          if(token[i] == NULL)
+          {
+            break;
+          }
+
           if(strcmp(token[i], ">") == 0)
           {
+            //error if '>' is first char in input
+            if(i == 0)
+            {
+              write(STDERR_FILENO, error_message, strlen(error_message));
+              break;
+            }
+
             int fd = open(token[i + 1], O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
 
             // error opening file
@@ -225,9 +248,10 @@ int main(int argc, char *argv[])
             dup2(fd, 1);
             close(fd);
 
-            // trim off '>' and [filename] in command
+            // trim off '>' and [filename] in command and break
             token[i] = NULL;
             token[i + 1] = NULL;
+            break;
           }
         }
 
@@ -279,12 +303,13 @@ int main(int argc, char *argv[])
       printf("token[%d] = %s\n", token_index, token[token_index] );  
     }
 
-    if(myFile != NULL)
-    {
-      fclose(myFile);
-    }
-
     free( head_ptr );
+  }
+
+  // close file point if applicable
+  if(myFile != NULL)
+  {
+    fclose(myFile);
   }
 
   return 0; 

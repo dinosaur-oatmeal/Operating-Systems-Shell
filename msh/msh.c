@@ -51,8 +51,6 @@
 
   // TO DO: figure out why running with test files in command line seg faults
   // figure out why ls keeps saying ls: cannot access ' ': No such file or directory
-  // figure out why redirection says cannot access '>' and prints to screen
-
 
 int main(int argc, char *argv[])
 {
@@ -62,6 +60,8 @@ int main(int argc, char *argv[])
   // error message and written message
   char error_message[30] = "An error has occurred\n";
   // write(STDERR_FILENO, error_message, strlen(error_message));
+
+  //printf("Hello");
 
   // create file pointer
   FILE *myFile;
@@ -98,16 +98,12 @@ int main(int argc, char *argv[])
     // batch mode
     else
     {
-        // break at end of file
-        if(feof(myFile))
-        {
-          break;
-        }
+        size_t count = 0;
         
-        //read next line
-        else
+        // read next line of file
+        if(!feof(myFile))
         {
-          fscanf(myFile, command_string, MAX_COMMAND_SIZE);
+          getline(&command_string, &count, myFile);
         }
     }
 
@@ -229,6 +225,16 @@ int main(int argc, char *argv[])
 
           if(strcmp(token[i], ">") == 0)
           {
+            // error if multiple file inputs after '>'
+            for(int j = i + 2; j < token_count; j++)
+            {
+              if(token[j] != NULL)
+              {
+                write(STDERR_FILENO, error_message, strlen(error_message));
+                break;
+              }
+            }
+
             //error if '>' is first char in input
             if(i == 0)
             {
@@ -264,7 +270,7 @@ int main(int argc, char *argv[])
         else
         {
           // executes process and automatically searches correct directories
-            execvp(token[0], &token[0]);
+          execvp(token[0], &token[0]);
         }
 
         // exit child process
@@ -297,11 +303,11 @@ int main(int argc, char *argv[])
     }
 
     // remove next 5 lines at the end
-    int token_index  = 0;
+    /*int token_index  = 0;
     for( token_index = 0; token_index < token_count; token_index ++ ) 
     {
       printf("token[%d] = %s\n", token_index, token[token_index] );  
-    }
+    }*/
 
     free( head_ptr );
   }

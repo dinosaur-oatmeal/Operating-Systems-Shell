@@ -69,6 +69,12 @@ int main(int argc, char *argv[])
   // open file if there's an argument for it
   if(argc > 1)
   {
+    // can't have more than one input file
+    if(argv[2] != NULL)
+    {
+      exit(0);
+    }
+
     // open file to be read from
     myFile = fopen(argv[1], "r");
 
@@ -156,6 +162,16 @@ int main(int argc, char *argv[])
         count_token++;
       }
     }
+
+    // exit program at end of file
+    if(myFile != NULL)
+    {
+      if(token[0] == NULL)
+      {
+        exit(0);
+      }
+    }
+
 
     // compare first token to exit
     if(strcmp(token[0], "exit") == 0)

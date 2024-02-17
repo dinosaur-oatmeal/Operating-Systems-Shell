@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
     }
   }
 
-  while( 1 )
+  LOOP: while( 1 )
   {
     // interactive mode
     if(myFile == NULL)
@@ -148,8 +148,30 @@ int main(int argc, char *argv[])
 
     // handle whitespace by looping through input
     int count_token = 0;
+    int count_null = 0;
     for(int count_input = 0; count_input < token_count; count_input++)
     {
+      if(token[count_input] == NULL)
+      {
+        // look for entire commands of whitespace and go to next line in file for input
+        count_null++;
+        if(myFile != NULL)
+        {
+          if(count_null == token_count && !feof(myFile))
+          {
+            goto LOOP;
+          }
+        }
+
+        else
+        {
+          if(count_null == token_count)
+          {
+            goto LOOP;
+          }
+        }
+      }
+
       // move non-NULL parameters to front of token[] and NULL parameters to the end of the 
       if(token[count_input] != NULL)
       {
@@ -158,7 +180,7 @@ int main(int argc, char *argv[])
         // catch cases where values are the same (don't overwrite data)
         if(count_input != count_token)
         {
-          token[count_input] = NULL;\
+          token[count_input] = NULL;
         }
         count_token++;
       }

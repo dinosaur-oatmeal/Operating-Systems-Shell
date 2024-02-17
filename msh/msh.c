@@ -72,7 +72,8 @@ int main(int argc, char *argv[])
     // can't have more than one input file
     if(argv[2] != NULL)
     {
-      exit(0);
+      write(STDERR_FILENO, error_message, strlen(error_message));
+      exit(EXIT_FAILURE);
     }
 
     // open file to be read from
@@ -165,6 +166,14 @@ int main(int argc, char *argv[])
 
     // exit program at end of file
     if(myFile != NULL)
+    {
+      if(token[0] == NULL)
+      {
+        exit(0);
+      }
+    }
+
+    else
     {
       if(token[0] == NULL)
       {

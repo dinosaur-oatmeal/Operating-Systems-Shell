@@ -38,7 +38,7 @@
 // added to support redirection from popen.c
 #include <fcntl.h>
 
-// test file arguments with: ./msh tests/1.in
+// test file arguments with: ./msh test-msh.sh
 
 #define WHITESPACE " \t\n"      // We want to split our command line up into tokens
                                 // so we need to define what delimits our tokens.
@@ -49,8 +49,7 @@
 
 #define MAX_NUM_ARGUMENTS 32
 
-  // TO DO: figure out why running with test files in command line seg faults
-  // figure out why ls keeps saying ls: cannot access ' ': No such file or directory
+void command(char *token[], char error_message[], char *head_ptr, int token_count, FILE *myFile);
 
 int main(int argc, char *argv[])
 {
@@ -87,7 +86,7 @@ int main(int argc, char *argv[])
     }
   }
 
-  LOOP: while( 1 )
+  while( 1 )
   {
     // interactive mode
     if(myFile == NULL)
@@ -143,220 +142,7 @@ int main(int argc, char *argv[])
         token_count++;
     }
 
-    // Now print the tokenized input as a debug check
-    // \TODO Remove this code and replace with your shell functionality
-
-    // handle whitespace by looping through input
-    int count_token = 0;
-    int count_null = 0;
-    for(int count_input = 0; count_input < token_count; count_input++)
-    {
-      if(token[count_input] == NULL)
-      {
-        // look for entire commands of whitespace and go to next line in file for input
-        count_null++;
-        if(myFile != NULL)
-        {
-          if(count_null == token_count && !feof(myFile))
-          {
-            goto LOOP;
-          }
-        }
-
-        else
-        {
-          if(count_null == token_count)
-          {
-            goto LOOP;
-          }
-        }
-      }
-
-      // move non-NULL parameters to front of token[] and NULL parameters to the end of the 
-      if(token[count_input] != NULL)
-      {
-        token[count_token] = token[count_input];
-
-        // catch cases where values are the same (don't overwrite data)
-        if(count_input != count_token)
-        {
-          token[count_input] = NULL;
-        }
-        count_token++;
-      }
-    }
-
-    // exit program at end of file
-    if(myFile != NULL)
-    {
-      if(token[0] == NULL)
-      {
-        exit(0);
-      }
-    }
-
-    else
-    {
-      if(token[0] == NULL)
-      {
-        exit(0);
-      }
-    }
-
-
-    // compare first token to exit
-    if(strcmp(token[0], "exit") == 0)
-    {
-      //printf("Success!");
-
-      // exiting
-      if(token[1] == NULL)
-      {
-        exit(0);
-      }
-    }
-
-    // cd
-    if(strcmp(token[0], "cd") == 0)
-    {
-        // incorrect input for cd
-        if(token[1] == NULL || token[2] != NULL)
-        {
-          write(STDERR_FILENO, error_message, strlen(error_message));
-        }
-
-        // call chdir
-        else
-        {
-          // cd does not exist
-          if(chdir(token[1]) != 0)
-          {
-            write(STDERR_FILENO, error_message, strlen(error_message));
-          }
-
-          // execute command
-          else
-          {
-              chdir(token[1]);
-          }
-        }
-    }
-
-    // all processes that require fork()
-    else
-    {
-      // make child's pid and status
-      pid_t child_pid = fork();
-      int status;
-
-      // child pid error
-      if(child_pid == -1)
-      {
-        write(STDERR_FILENO, error_message, strlen(error_message));
-        exit(EXIT_FAILURE);
-      }
-
-      // execute child pid's process
-      else if(child_pid == 0)
-      {
-
-        // look for redirection (use token[] instead of argv[])
-        // command stored in token[]
-        for(int i = 1; i < token_count; i++)
-        {
-          // break at the end of the command
-          if(token[i] == NULL)
-          {
-            break;
-          }
-
-          if(strcmp(token[i], ">") == 0)
-          {
-            // error if multiple file inputs after '>'
-            for(int j = i + 2; j < token_count; j++)
-            {
-              if(token[j] != NULL)
-              {
-                write(STDERR_FILENO, error_message, strlen(error_message));
-                break;
-              }
-            }
-
-            //error if '>' is first char in input
-            if(i == 0)
-            {
-              write(STDERR_FILENO, error_message, strlen(error_message));
-              break;
-            }
-
-            int fd = open(token[i + 1], O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
-
-            // error opening file
-            if(fd < 0)
-            {
-              write(STDERR_FILENO, error_message, strlen(error_message));
-              exit(0);
-            }
-
-            dup2(fd, 1);
-            close(fd);
-
-            // trim off '>' and [filename] in command and break
-            token[i] = NULL;
-            token[i + 1] = NULL;
-            break;
-          }
-        }
-
-        // see if command exists in directories
-        if(execvp(token[0], &token[0]) == -1)
-        {
-          write(STDERR_FILENO, error_message, strlen(error_message));
-        }
-
-        else
-        {
-          // executes process and automatically searches correct directories
-          execvp(token[0], &token[0]);
-        }
-
-        // exit child process
-        fflush(NULL);
-        exit(EXIT_SUCCESS);
-      }
-
-      // wait for process
-      else if(child_pid > 0)
-      {
-        wait(NULL);
-      }
-
-      // fork failed
-      else
-      {
-        write(STDERR_FILENO, error_message, strlen(error_message));
-        exit(0);
-      }
-
-      // child terminated by signal
-      if(WIFSIGNALED(status))
-      {
-        write(STDERR_FILENO, error_message, strlen(error_message));
-        exit(0);
-      }
-
-      // wait for child process to finish
-      waitpid(child_pid, &status, 0);
-    }
-
-    // remove next 5 lines at the end
-    /*int token_index  = 0;
-    for( token_index = 0; token_index < token_count; token_index ++ ) 
-    {
-      printf("token[%d] = %s\n", token_index, token[token_index] );  
-    }*/
-
-    free( head_ptr );
+    command(token, error_message, head_ptr, token_count, myFile);
   }
 
   // close file point if applicable
@@ -365,5 +151,205 @@ int main(int argc, char *argv[])
     fclose(myFile);
   }
 
-  return 0; 
+  return 0;
+}
+
+void command(char *token[], char error_message[], char *head_ptr, int token_count, FILE *myFile)
+{
+  // handle whitespace by looping through input
+  int count_token = 0;
+  int count_null = 0;
+  for(int count_input = 0; count_input < token_count; count_input++)
+  {
+    if(token[count_input] == NULL)
+    {
+      // look for entire commands of whitespace and return to main
+      count_null++;
+      if(myFile != NULL)
+      {
+        // batch mode exit to main
+        if(count_null == token_count && !feof(myFile))
+        {
+          return;
+        }
+      }
+
+      // interactive mode exit to main
+      else
+      {
+        if(count_null == token_count)
+        {
+          return;
+        }
+      }
+    }
+
+    // move non-NULL parameters to front of token[] and NULL parameters to the end of the 
+    if(token[count_input] != NULL)
+    {
+      token[count_token] = token[count_input];
+
+      // catch cases where values are the same (don't overwrite data)
+      if(count_input != count_token)
+      {
+        token[count_input] = NULL;
+      }
+
+      count_token++;
+    }
+  }
+
+  // batch mode exit call at end of file
+  if(token[0] == NULL)
+  {
+    exit(0);
+  }
+
+  // compare first token to exit
+  if(strcmp(token[0], "exit") == 0)
+  {
+    // exiting
+    if(token[1] == NULL)
+    {
+      exit(0);
+    }
+  }
+
+  // cd
+  if(strcmp(token[0], "cd") == 0)
+  {
+    // incorrect input for cd
+    if(token[1] == NULL || token[2] != NULL)
+    {
+      write(STDERR_FILENO, error_message, strlen(error_message));
+    }
+
+    // call chdir
+    else
+    {
+      // cd does not exist
+      if(chdir(token[1]) != 0)
+      {
+        write(STDERR_FILENO, error_message, strlen(error_message));
+      }
+
+      // execute command
+      else
+      {
+        chdir(token[1]);
+      }
+    }
+  }
+
+  // all processes that require fork()
+  else
+  {
+    // make child's pid and status
+    pid_t child_pid = fork();
+    int status;
+
+    // child pid error
+    if(child_pid == -1)
+    {
+      write(STDERR_FILENO, error_message, strlen(error_message));
+      exit(EXIT_FAILURE);
+    }
+
+    // execute child pid's process
+    else if(child_pid == 0)
+    {
+
+      // look for redirection
+      // command stored in token[]
+      for(int i = 1; i < token_count; i++)
+      {
+        // break at the end of the command
+        if(token[i] == NULL)
+        {
+          break;
+        }
+
+        // find ">" in token
+        if(strcmp(token[i], ">") == 0)
+        {
+          // error if multiple file inputs after ">"
+          for(int j = i + 2; j < token_count; j++)
+          {
+            if(token[j] != NULL)
+            {
+              write(STDERR_FILENO, error_message, strlen(error_message));
+              break;
+            }
+          }
+
+          //error if ">" is first char in input
+          if(i == 0)
+          {
+            write(STDERR_FILENO, error_message, strlen(error_message));
+            break;
+          }
+
+          int fd = open(token[i + 1], O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+
+          // error opening file
+          if(fd < 0)
+          {
+            write(STDERR_FILENO, error_message, strlen(error_message));
+            exit(0);
+          }
+
+          dup2(fd, 1);
+          close(fd);
+
+          // trim off ">" and [filename] in command and break
+          token[i] = NULL;
+          token[i + 1] = NULL;
+          break;
+        }
+      }
+
+      // see if command exists in directories
+      if(execvp(token[0], &token[0]) == -1)
+      {
+        write(STDERR_FILENO, error_message, strlen(error_message));
+      }
+
+      else
+      {
+        // executes process
+        // (execvp automatically searches required directories)
+        execvp(token[0], &token[0]);
+      }
+
+      // exit child process
+      fflush(NULL);
+      exit(EXIT_SUCCESS);
+    }
+
+    // wait for process
+    else if(child_pid > 0)
+    {
+      wait(NULL);
+    }
+
+    // fork failed
+    else
+    {
+      write(STDERR_FILENO, error_message, strlen(error_message));
+      exit(0);
+    }
+
+    // wait for child process to finish
+    waitpid(child_pid, &status, 0);
+  }
+
+  // remove next 5 lines once everything works as intended
+  // used for debugging
+  /*int token_index  = 0;
+  for( token_index = 0; token_index < token_count; token_index ++ ) 
+  {
+    printf("token[%d] = %s\n", token_index, token[token_index] );  
+  }*/
+
+  free( head_ptr );
 }

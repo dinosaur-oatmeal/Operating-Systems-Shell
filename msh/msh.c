@@ -49,6 +49,7 @@
 
 #define MAX_NUM_ARGUMENTS 32
 
+// command function declaration
 void command(char *token[], char error_message[], char *head_ptr, int token_count, FILE *myFile);
 
 int main(int argc, char *argv[])
@@ -139,13 +140,14 @@ int main(int argc, char *argv[])
       {
         token[token_count] = NULL;
       }
-        token_count++;
+
+      token_count++;
     }
 
     command(token, error_message, head_ptr, token_count, myFile);
   }
 
-  // close file point if applicable
+  // close file pointer if applicable
   if(myFile != NULL)
   {
     fclose(myFile);
@@ -184,12 +186,12 @@ void command(char *token[], char error_message[], char *head_ptr, int token_coun
       }
     }
 
-    // move non-NULL parameters to front of token[] and NULL parameters to the end of the 
+    // move non-NULL parameters to the front of token[] and NULL parameters to the end
     if(token[count_input] != NULL)
     {
       token[count_token] = token[count_input];
 
-      // catch cases where values are the same (don't overwrite data)
+      // only overwrite data if values are different
       if(count_input != count_token)
       {
         token[count_input] = NULL;
@@ -224,20 +226,16 @@ void command(char *token[], char error_message[], char *head_ptr, int token_coun
       write(STDERR_FILENO, error_message, strlen(error_message));
     }
 
-    // call chdir
+    // cd does not exist
+    else if(chdir(token[1]) != 0)
+    {
+        write(STDERR_FILENO, error_message, strlen(error_message));
+    }
+
+    // execute command
     else
     {
-      // cd does not exist
-      if(chdir(token[1]) != 0)
-      {
-        write(STDERR_FILENO, error_message, strlen(error_message));
-      }
-
-      // execute command
-      else
-      {
-        chdir(token[1]);
-      }
+      chdir(token[1]);
     }
   }
 
